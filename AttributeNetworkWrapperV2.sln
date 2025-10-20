@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AttributeNetworkWrapperV2.Generator", "AttributeNetworkWrapperV2.Generator\AttributeNetworkWrapperV2.Generator.csproj", "{54786C88-A15E-4EB7-9ADC-15EEB7B16E9E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AttributeNetworkWrapperV2", "AttributeNetworkWrapperV2\AttributeNetworkWrapperV2.csproj", "{75F4F71D-4B95-4228-89D3-A6BFC01AFF0B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AttributeNetworkWrapperV2.Tests", "AttributeNetworkWrapperV2.Tests\AttributeNetworkWrapperV2.Tests.csproj", "{4F952720-71CA-4F63-B221-F2692BBD0662}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{54786C88-A15E-4EB7-9ADC-15EEB7B16E9E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54786C88-A15E-4EB7-9ADC-15EEB7B16E9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54786C88-A15E-4EB7-9ADC-15EEB7B16E9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54786C88-A15E-4EB7-9ADC-15EEB7B16E9E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75F4F71D-4B95-4228-89D3-A6BFC01AFF0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75F4F71D-4B95-4228-89D3-A6BFC01AFF0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75F4F71D-4B95-4228-89D3-A6BFC01AFF0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75F4F71D-4B95-4228-89D3-A6BFC01AFF0B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4F952720-71CA-4F63-B221-F2692BBD0662}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4F952720-71CA-4F63-B221-F2692BBD0662}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4F952720-71CA-4F63-B221-F2692BBD0662}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4F952720-71CA-4F63-B221-F2692BBD0662}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
