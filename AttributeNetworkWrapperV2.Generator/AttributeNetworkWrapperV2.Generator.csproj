@@ -9,7 +9,7 @@
         <LangVersion>default</LangVersion>
         <OutputItemType>Analyzer</OutputItemType>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>0.0.1</Version>
+        <Version>0.5.0</Version>
         <Title>AttributeNetworkWrapperV2.Generator</Title>
         <Authors>Aiden</Authors>
     </PropertyGroup>

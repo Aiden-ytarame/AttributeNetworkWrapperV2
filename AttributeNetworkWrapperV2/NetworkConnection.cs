@@ -7,7 +7,7 @@ namespace AttributeNetworkWrapperV2
     public abstract class NetworkConnection
     {
         public readonly int ConnectionId = 0;
-        public string Address { get; private set; }
+        public  string Address { get; private set; }
         
         internal NetworkConnection(){}
         internal NetworkConnection(int connectionId, string address)

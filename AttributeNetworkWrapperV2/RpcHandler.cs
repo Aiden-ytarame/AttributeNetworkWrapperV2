@@ -31,7 +31,7 @@ public static class RpcHandler
         Type registerRpcs = null;
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
-            registerRpcs = assembly.GetType("AttributeNetworkWrapper.RpcFuncRegistersGenerated");
+            registerRpcs = assembly.GetType("AttributeNetworkWrapperV2.RpcFuncRegistersGenerated");
             if (registerRpcs != null)
             {
                 break;

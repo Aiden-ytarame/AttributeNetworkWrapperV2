@@ -76,6 +76,7 @@ namespace AttributeNetworkWrapperV2
                 return;
             }
             
+#pragma warning disable CS8601 // Possible null reference assignment.
             Transport.OnClientConnected -= OnClientConnected;
             Transport.OnServerStarted -= OnServerStarted;
             
@@ -85,6 +86,7 @@ namespace AttributeNetworkWrapperV2
             
             Transport.OnServerDataReceived -= OnServerTransportDataReceived;
             Transport.OnClientDataReceived -= OnClientTransportDataReceived;
+#pragma warning restore CS8601 // Possible null reference assignment.
             _eventsSet = false;
         }
         

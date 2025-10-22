@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace AttributeNetworkWrapperV2.Generator;
@@ -13,32 +12,17 @@ public class RpcGenerator : IIncrementalGenerator
             typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
             memberOptions: SymbolDisplayMemberOptions.IncludeContainingType, 
             globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
-            miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+            miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes, 
+            genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
     
     
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var allExtensions = context.CompilationProvider.Select((x, _) =>
         {
-            List<IMethodSymbol?> writers = new();
-
-            foreach (var namedTypeSymbol in x.GlobalNamespace.GetTypeMembers())
-            {
-                if (namedTypeSymbol.DeclaredAccessibility != Accessibility.Public)
-                {
-                     continue;
-                }
-
-                foreach (var methodSymbol in namedTypeSymbol.GetMembers().OfType<IMethodSymbol>())
-                {
-                    if (methodSymbol.IsExtensionMethod && methodSymbol.DeclaredAccessibility == Accessibility.Public)
-                    {
-                        writers.Add(methodSymbol);
-                    }
-                }
-            }
-
-            foreach (var namespaceMember in x.GlobalNamespace.GetNamespaceMembers())
+            var builder = ImmutableArray.CreateBuilder<IMethodSymbol?>();
+            
+            foreach (var namespaceMember in GetAllNamespacesRecursive(x.GlobalNamespace))
             {
                 foreach (var namedTypeSymbol in namespaceMember.GetTypeMembers())
                 {
@@ -51,17 +35,18 @@ public class RpcGenerator : IIncrementalGenerator
                     {
                         if (methodSymbol.IsExtensionMethod && methodSymbol.DeclaredAccessibility == Accessibility.Public)
                         {
-                            writers.Add(methodSymbol);
+                            builder.Add(methodSymbol);
                         }
                     }
                 }
             }
-            return writers.ToImmutableArray();
+            
+            return builder.ToImmutable();
         });
 
         var writers = allExtensions.Select((x, _) =>
         {
-            List<ExtensionSyntax> writers = new();
+            var builder = ImmutableArray.CreateBuilder<ExtensionSyntax>();
             foreach (var methodSymbol in x)
             {
                 if (methodSymbol is not null &&
@@ -69,16 +54,16 @@ public class RpcGenerator : IIncrementalGenerator
                     methodSymbol.ReturnsVoid &&
                     methodSymbol.Parameters[0].Type.ToDisplayString(FullNameQualification) == "AttributeNetworkWrapperV2.NetworkWriter")
                 {
-                    writers.Add(new ExtensionSyntax(methodSymbol.ToDisplayString(FullNameQualification), methodSymbol.Parameters[1].Type));
+                    builder.Add(new ExtensionSyntax(methodSymbol.ToDisplayString(FullNameQualification), methodSymbol.Parameters[1].Type));
                 }
             }
             
-            return writers.ToImmutableArray();
+            return builder.ToImmutable();
         });
         
         var readers = allExtensions.Select((x, _) =>
         {
-            List<ExtensionSyntax> readers = new();
+            var builder = ImmutableArray.CreateBuilder<ExtensionSyntax>();
            
             foreach (var methodSymbol in x)
             {
@@ -87,44 +72,125 @@ public class RpcGenerator : IIncrementalGenerator
                     !methodSymbol.ReturnsVoid &&
                     methodSymbol.Parameters[0].Type.ToDisplayString(FullNameQualification) == "AttributeNetworkWrapperV2.NetworkReader")
                 {
-                    readers.Add(new ExtensionSyntax(methodSymbol.ToDisplayString(FullNameQualification), methodSymbol.ReturnType));
+                    builder.Add(new ExtensionSyntax(methodSymbol.ToDisplayString(FullNameQualification), methodSymbol.ReturnType));
                 }
             }
-            
-            return readers.ToImmutableArray();
+
+            return builder.ToImmutable();
         });
         
-        var serverRpcs = context.SyntaxProvider.ForAttributeWithMetadataName("AttributeNetworkWrapperV2.ServerRpcAttribute",
+       var serverRpcs = context.SyntaxProvider.ForAttributeWithMetadataName("AttributeNetworkWrapperV2.ServerRpcAttribute",
             predicate: static (node, _) => true,
             transform: static (syntaxContext, _) =>
             {
                 var methodDeclarationSyntax = syntaxContext.TargetNode;
-                return RpcSyntax.Create(syntaxContext.SemanticModel.GetDeclaredSymbol(methodDeclarationSyntax)!);
+                return RpcSyntax.Create(syntaxContext.SemanticModel.GetDeclaredSymbol(methodDeclarationSyntax));
+                
             }).Where(static x => x is not null);
         
-        var serverRpcWriterReader = serverRpcs.Combine(writers.Combine(readers));
+        var clientRpcs = context.SyntaxProvider.ForAttributeWithMetadataName("AttributeNetworkWrapperV2.ClientRpcAttribute",
+            predicate: static (node, _) => true,
+            transform: static (syntaxContext, _) =>
+            {
+                var methodDeclarationSyntax = syntaxContext.TargetNode;
+                return RpcSyntax.Create(syntaxContext.SemanticModel.GetDeclaredSymbol(methodDeclarationSyntax));
+            }).Where(static x => x is not null);
+        
+        var multiRpcs = context.SyntaxProvider.ForAttributeWithMetadataName("AttributeNetworkWrapperV2.MultiRpcAttribute",
+            predicate: static (node, _) => true,
+            transform: static (syntaxContext, _) =>
+            {
+                var methodDeclarationSyntax = syntaxContext.TargetNode;
+                return RpcSyntax.Create(syntaxContext.SemanticModel.GetDeclaredSymbol(methodDeclarationSyntax));
+            }).Where(static x => x is not null);
+
+        var readerWriter = writers.Combine(readers);
+        
+        var serverRpcWriterReader = serverRpcs.Combine(readerWriter);
+        var clientRpcWriterReader = clientRpcs.Combine(readerWriter);
+        var multiRpcWriterReader = multiRpcs.Combine(readerWriter);
+        
         context.RegisterSourceOutput(serverRpcWriterReader, static (productionContext, syntax) => GenerateServerRpc(productionContext, syntax.Left!.Value, syntax.Right.Left!, syntax.Right.Right!));
+        context.RegisterSourceOutput(clientRpcWriterReader, static (productionContext, syntax) => GenerateClientRpc(productionContext, syntax.Left!.Value, syntax.Right.Left!, syntax.Right.Right!));
+        context.RegisterSourceOutput(multiRpcWriterReader, static (productionContext, syntax) => GenerateMultiRpc(productionContext, syntax.Left!.Value, syntax.Right.Left!, syntax.Right.Right!));
+        
+        var allRpcs = serverRpcs.Collect().Combine(clientRpcs.Collect()).Combine(multiRpcs.Collect());
+        var projectName = context.CompilationProvider.Select((x, _) => x.AssemblyName);
+        var allRpcAndName = allRpcs.Combine(projectName);
+        
+        context.RegisterSourceOutput(allRpcAndName, static (productionContext, syntax) => GenerateRpcInvoker(productionContext, syntax.Right, syntax.Left.Left.Left, syntax.Left.Left.Right, syntax.Left.Right));
+        
     }
+    
     
     static void GenerateServerRpc(SourceProductionContext context, RpcSyntax mtd, ImmutableArray<ExtensionSyntax> writers, ImmutableArray<ExtensionSyntax> readers)
     {
-        StringBuilder source = new StringBuilder();
+        if (!ValidRpc(context, mtd)) return;
         
-        context.ReportDiagnostic(Diagnostic.Create(
-            new DiagnosticDescriptor(
-                "SG0001",
-                "fuck",
-                $"Returned {writers.Length} writers, {readers.Length} readers",
-                "yeet",
-                DiagnosticSeverity.Info,
-                true), Location.None));
-
+        StringBuilder source = new StringBuilder();
         
         StartGeneratingClass(source, mtd.ContainingType);
         GenerateFunctionDeclaration(context, source, mtd, "CallRpc_");
         GenerateWriter(context, source, mtd, writers);
             
-        source.AppendLine($"         NetworkManager.Instance.SendToServer(writer.GetData(), (SendType){mtd.SendType});");
+        source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToServer(writer.GetData(), (SendType){mtd.SendType});");
+        source.AppendLine("        }\n");
+        
+        GenerateDeserializeFunction(context, source, mtd, readers);
+        
+        source.AppendLine("   }\n}");
+        context.AddSource($"{mtd.FullName}.g.cs", source.ToString());
+        
+    }
+    
+    static void GenerateClientRpc(SourceProductionContext context, RpcSyntax mtd, ImmutableArray<ExtensionSyntax> writers, ImmutableArray<ExtensionSyntax> readers)
+    {
+        if (!ValidRpc(context, mtd)) return;
+        
+        StringBuilder source = new StringBuilder();
+
+        string conn = "";
+        bool found = false;
+        foreach (var parameterSymbol in mtd.Parameters)
+        {
+            if (parameterSymbol.Type.ToDisplayString(FullNameQualification) == "AttributeNetworkWrapperV2.ClientNetworkConnection")
+            {
+                if (found)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            "SG0001",
+                            "duplicate conn",
+                            $"method {mtd.Name} contains more than one ClientNetworkConnection parameter",
+                            "error",
+                            DiagnosticSeverity.Error,
+                            true), mtd.Location)); 
+                    return;
+                }
+                
+                conn = parameterSymbol.Name;
+                found = true;
+            }
+        }
+        
+        if (!found)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "SG0001",
+                    "no writer",
+                    $"client rpc {mtd.Name} should contain one ClientNetworkConnection parameter",
+                    "error",
+                    DiagnosticSeverity.Error,
+                    true), mtd.Location));
+            return;
+        }
+        
+        StartGeneratingClass(source, mtd.ContainingType);
+        GenerateFunctionDeclaration(context, source, mtd, "CallRpc_");
+        GenerateWriter(context, source, mtd, writers);
+            
+        source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToClient({conn}, writer.GetData(), (SendType){mtd.SendType});");
         source.AppendLine("        }\n");
         
         GenerateDeserializeFunction(context, source, mtd, readers);
@@ -134,6 +200,69 @@ public class RpcGenerator : IIncrementalGenerator
         
     }
 
+    static void GenerateMultiRpc(SourceProductionContext context, RpcSyntax mtd, ImmutableArray<ExtensionSyntax> writers, ImmutableArray<ExtensionSyntax> readers)
+    {
+        if (!ValidRpc(context, mtd)) return;
+        
+        foreach (var parameterSymbol in mtd.Parameters)
+        {
+            if (parameterSymbol.Type.ToDisplayString(FullNameQualification) == "AttributeNetworkWrapperV2.ClientNetworkConnection")
+            {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            "SG0001",
+                            "duplicate conn",
+                            $"Multi rpc {mtd.Name} cannot contain a ClientNetworkConnection parameter",
+                            "error",
+                            DiagnosticSeverity.Error,
+                            true), mtd.Location)); 
+                    return;
+            }
+        }
+        
+        StringBuilder source = new StringBuilder();
+        
+        StartGeneratingClass(source, mtd.ContainingType);
+        GenerateFunctionDeclaration(context, source, mtd, "CallRpc_");
+        GenerateWriter(context, source, mtd, writers);
+            
+        source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToAllClients(writer.GetData(), (SendType){mtd.SendType});");
+        source.AppendLine("        }\n");
+        
+        GenerateDeserializeFunction(context, source, mtd, readers);
+        
+        source.AppendLine("   }\n}");
+        context.AddSource($"{mtd.FullName}.g.cs", source.ToString());
+        
+    }
+    static bool ValidRpc(SourceProductionContext context, RpcSyntax mtd)
+    {
+        switch (mtd.Error)
+        {
+            case RpcSyntax.RpcError.Partial:
+                context.ReportDiagnostic(Diagnostic.Create(
+                    new DiagnosticDescriptor(
+                        "SG0001",
+                        "bad ref",
+                        $"type {mtd.ContainingType.Name} containing rpc {mtd.Name} must be a partial class",
+                        "error",
+                        DiagnosticSeverity.Error,
+                        true), mtd.ContainingType.Locations.FirstOrDefault()));
+                return false;
+            case RpcSyntax.RpcError.VoidStatic:
+                context.ReportDiagnostic(Diagnostic.Create(
+                    new DiagnosticDescriptor(
+                        "SG0001",
+                        "static void",
+                        $"rpc {mtd.Name} has to be [static void]",
+                        "error",
+                        DiagnosticSeverity.Error,
+                        true), mtd.Location));
+                return false;
+            default:
+                return true;
+        }
+    }
     static void StartGeneratingClass(StringBuilder source, INamedTypeSymbol type)
     {
         source.AppendLine("using System; \nusing AttributeNetworkWrapperV2;");
@@ -195,7 +324,7 @@ public class RpcGenerator : IIncrementalGenerator
                 break;
         }
 
-        source.Append($"void {prefix}{mtd.Name} (");
+        source.Append($"static void {prefix}{mtd.Name} (");
         
         for (int i = 0; i <  mtd.Parameters.Length; i++)
         {
@@ -209,9 +338,10 @@ public class RpcGenerator : IIncrementalGenerator
                         $"method {mtd.Name} cannot have {parameter.RefKind} parameter",
                         "error",
                         DiagnosticSeverity.Error,
-                        true), Location.None));
+                        true), mtd.Location));
                 return;
             }
+
             
             source.Append($"{parameter.Type.ToDisplayString(FullNameQualification)} {parameter.Name}");
 
@@ -244,7 +374,7 @@ public class RpcGenerator : IIncrementalGenerator
 
     static void GenerateWriter(SourceProductionContext context, StringBuilder source, RpcSyntax mtd, ImmutableArray<ExtensionSyntax> writers)
     {
-        source.AppendLine("         if (NetworkManager.Instance == null) \n            return;");
+        source.AppendLine("         if (AttributeNetworkWrapperV2.NetworkManager.Instance == null) \n            return;\n");
         source.AppendLine("         using NetworkWriter writer = new NetworkWriter();");
         source.AppendLine($"         writer.Write({mtd.Hash});");
         
@@ -252,6 +382,11 @@ public class RpcGenerator : IIncrementalGenerator
         foreach (var parameterSymbol in mtd.Parameters)
         {
             found= false;
+
+            if (parameterSymbol.Type.Name == "ClientNetworkConnection")
+            {
+                continue;
+            }
             
             foreach (var methodSymbol in writers)
             {
@@ -272,7 +407,7 @@ public class RpcGenerator : IIncrementalGenerator
                         $"method {mtd.Name} contains parameter of type {parameterSymbol.Type.Name}, which has no writer. Consider making an extension method.",
                         "error",
                         DiagnosticSeverity.Error,
-                        true), Location.None));
+                        true), mtd.Location));
                 return;
             }
         }
@@ -280,24 +415,7 @@ public class RpcGenerator : IIncrementalGenerator
 
     static void GenerateDeserializeFunction(SourceProductionContext context, StringBuilder source, RpcSyntax mtd, ImmutableArray<ExtensionSyntax> readers)
     {
-        source.Append("        ");
-        switch (mtd.Accessibility)
-        {
-            case Accessibility.Private:
-                source.Append("private ");
-                break;
-            case Accessibility.Protected:
-                source.Append("protected ");
-                break;
-            case Accessibility.Internal:
-                source.Append("internal ");
-                break;
-            case Accessibility.Public:
-                source.Append("public ");
-                break;
-        }
-
-        source.AppendLine($"void Deserialize_{mtd.Name}_{mtd.Hash} (ClientNetworkConnection senderConn, NetworkReader reader)");
+        source.AppendLine($"        public static void Deserialize_{mtd.Name}_{mtd.Hash} (ClientNetworkConnection senderConn, NetworkReader reader)");
 
         source.AppendLine("        {");
         source.Append($"            {mtd.Name}(");
@@ -309,8 +427,8 @@ public class RpcGenerator : IIncrementalGenerator
           
             IParameterSymbol parameter = mtd.Parameters[i];
             
-            if (parameter.ToDisplayString(FullNameQualification) ==
-                "AttributeNetworkWrapperV2.ClientNetworkConnection")
+            
+            if (parameter.Type.Name == "ClientNetworkConnection")
             {
                 source.Append("senderConn");
                 
@@ -342,7 +460,7 @@ public class RpcGenerator : IIncrementalGenerator
                         $"method {mtd.Name} contains parameter of type {parameter.Type.Name}, which has no reader. Consider making an extension method.",
                         "error",
                         DiagnosticSeverity.Error,
-                        true), Location.None));
+                        true), mtd.Location));
                 return;
             }
 
@@ -354,5 +472,82 @@ public class RpcGenerator : IIncrementalGenerator
         
         
         source.AppendLine(");\n        }");
+    }
+
+    static IEnumerable<INamespaceSymbol> GetAllNamespacesRecursive(INamespaceSymbol symbol)
+    {
+        yield return symbol;
+
+        foreach (var namespaceMember in symbol.GetNamespaceMembers())
+        {
+            foreach (var namespaceSymbol in GetAllNamespacesRecursive(namespaceMember))
+            {
+                yield return namespaceSymbol;
+            }
+        }
+    }
+
+    static void GenerateRpcInvoker(SourceProductionContext context, string? assemblyName, ImmutableArray<RpcSyntax?> server, ImmutableArray<RpcSyntax?> client, ImmutableArray<RpcSyntax?> multi)
+    {
+        StringBuilder builder = new StringBuilder();
+
+        Dictionary<ushort, RpcSyntax> hashes = new();
+        
+        void RegisterRpc( RpcSyntax? rpcSyntax, int callType)
+        {
+            if (rpcSyntax is { } rpc)
+            {
+                if (hashes.TryGetValue(rpc.Hash, out var existing))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            "SG0001",
+                            "repeat hash",
+                            $"method {rpc.Name} clashed hash with {existing.Name}, consider renaming one.",
+                            "error",
+                            DiagnosticSeverity.Error,
+                            true), rpc.Location));
+                }
+                else
+                {
+                    hashes.Add(rpc.Hash, rpc);
+                    builder.AppendLine($"           RpcHandler.RegisterRpc({rpc.Hash}, new RpcHandler.RpcDelegate({rpc.FullName.Remove(rpc.FullName.Length - rpc.Name.Length)}Deserialize_{rpc.Name}_{rpc.Hash}), (RpcHandler.CallType){callType});");
+                }
+                
+            }
+        }
+        
+        builder.AppendLine("using AttributeNetworkWrapperV2;\n");
+
+        builder.AppendLine(@"
+namespace AttributeNetworkWrapperV2
+{
+    internal static class RpcFuncRegisterGenerated
+    {
+        static RpcFuncRegisterGenerated()
+        {");
+
+       
+        
+        foreach (var rpcSyntax in server)
+        {
+            
+            RegisterRpc(rpcSyntax, 0);
+        }
+        foreach (var rpcSyntax in client)
+        {
+            RegisterRpc(rpcSyntax, 1);
+        }
+        foreach (var rpcSyntax in multi)
+        {
+            RegisterRpc(rpcSyntax, 2);
+        }
+
+        builder.AppendLine(@"
+        }
+    }
+}");
+        
+        context.AddSource($"{assemblyName}.RpcRegister.g.cs", builder.ToString());
     }
 }

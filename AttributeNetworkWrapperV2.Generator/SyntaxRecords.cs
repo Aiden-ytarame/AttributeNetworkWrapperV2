@@ -5,9 +5,16 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace AttributeNetworkWrapperV2.Generator;
 
-public readonly record struct RpcSyntax(string Name, string FullName, ushort Hash, INamedTypeSymbol ContainingType, Accessibility Accessibility, ImmutableArray<IParameterSymbol> Parameters, ushort SendType)
+public readonly record struct RpcSyntax(string Name, string FullName, ushort Hash, INamedTypeSymbol ContainingType, Accessibility Accessibility, ImmutableArray<IParameterSymbol> Parameters, ushort SendType, Location? Location, RpcSyntax.RpcError Error = RpcSyntax.RpcError.None)
 {
-    public static RpcSyntax? Create(ISymbol symbol)
+    public enum RpcError
+    {
+        None,
+        Partial,
+        VoidStatic,
+    }
+    
+    public static RpcSyntax? Create(ISymbol? symbol)
     {
         
         if (symbol is not IMethodSymbol method)
@@ -15,19 +22,19 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
             return null;
         }
 
-        if (!method.ReturnsVoid)
+        if (!method.ReturnsVoid || !method.IsStatic)
         {
-            return null;
+            return new RpcSyntax(method.Name, method.ToDisplayString(RpcGenerator.FullNameQualification), 0, method.ContainingType, method.DeclaredAccessibility, method.Parameters, 0, method.Locations.FirstOrDefault(), RpcError.VoidStatic);
         }
         
         if (!method.ContainingType.DeclaringSyntaxReferences.Any(syntax =>
                 syntax.GetSyntax() is BaseTypeDeclarationSyntax declaration
                 && declaration.Modifiers.Any(modifier => modifier.IsKind(SyntaxKind.PartialKeyword))))
         {
-            return null; // not partial
+            return new RpcSyntax(method.Name, method.ToDisplayString(RpcGenerator.FullNameQualification), 0, method.ContainingType, method.DeclaredAccessibility, method.Parameters, 0, method.Locations.FirstOrDefault(), RpcError.Partial);
         }
 
-        return new RpcSyntax(method.Name, method.ToDisplayString(RpcGenerator.FullNameQualification), method.ToDisplayString(RpcGenerator.FullNameQualification).GetStableHashCode(), method.ContainingType, method.DeclaredAccessibility, method.Parameters, (ushort)method.GetAttributes()[0].ConstructorArguments[0].Value!);
+        return new RpcSyntax(method.Name, method.ToDisplayString(RpcGenerator.FullNameQualification), method.ToDisplayString(RpcGenerator.FullNameQualification).GetStableHashCode(), method.ContainingType, method.DeclaredAccessibility, method.Parameters, (ushort)method.GetAttributes()[0].ConstructorArguments[0].Value!, method.Locations.FirstOrDefault());
     }
 
     public readonly string Name = Name;
@@ -37,7 +44,8 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
     public readonly Accessibility Accessibility = Accessibility;
     public readonly ImmutableArray<IParameterSymbol> Parameters = Parameters;
     public readonly ushort SendType = SendType;
-
+    public readonly Location? Location = Location;
+    public readonly RpcError Error = Error;
 }
 
 public readonly record struct ExtensionSyntax(string FullName, ITypeSymbol ExtensionType)

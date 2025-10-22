@@ -19,7 +19,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\AttributeNetworkWrapperV2.Generator\AttributeNetworkWrapperV2.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+      <ProjectReference Include="..\AttributeNetworkWrapperV2.Generator\AttributeNetworkWrapperV2.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
       <ProjectReference Include="..\AttributeNetworkWrapperV2\AttributeNetworkWrapperV2.csproj" />
     </ItemGroup>
 
