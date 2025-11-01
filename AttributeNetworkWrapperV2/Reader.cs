@@ -12,7 +12,7 @@ public class NetworkReader : IDisposable
         BinaryReader = new BinaryReader(stream);
     }
     
-    public NetworkReader(ArraySegment<byte> data) : this(new MemoryStream(data.Array!)) { }
+    public NetworkReader(ArraySegment<byte> data) : this(new MemoryStream(data.ToArray())) { }
     
     public void Dispose()
     {

@@ -9,11 +9,24 @@ namespace AttributeNetworkWrapperV2
         /// <summary>
         /// Singleton of the current NetworkManager
         /// </summary>
-        public static NetworkManager Instance { get; private set; }
+        public static NetworkManager? Instance { get; private set; }
         /// <summary>
-        /// Simply calls Transport.IsActive
+        /// Whether the transport is active
         /// </summary>
         public bool TransportActive => Transport.IsActive;
+        /// <summary>
+        /// Whether the transport was initialized as a server.
+        /// </summary>
+        public bool Server => Transport.IsServer;
+        /// <summary>
+        /// Whether the server is also a client
+        /// </summary>
+        public bool PeerServer { get; protected set; }
+        
+        /// <summary>
+        /// If a peer, the connection that points to itself
+        /// </summary>
+        public ClientNetworkConnection? ServerSelfPeerConnection { get; protected set; }
         
         protected ServerNetworkConnection? _serverConnection;
         protected Dictionary<int, ClientNetworkConnection> _clientConnections = new();
@@ -25,11 +38,6 @@ namespace AttributeNetworkWrapperV2
         protected Transport Transport => Transport.Instance;
         
         bool _eventsSet = false;
-        
-        ~NetworkManager()
-        {
-            DeSetupEvents();
-        }
         
         /// <summary>
         /// Inits this networkManager, must be called before use.
@@ -43,6 +51,7 @@ namespace AttributeNetworkWrapperV2
             {
                 return false;
             }
+            
             Instance = this;
             Transport.Instance = transport;
             SetupEvents();
@@ -50,6 +59,22 @@ namespace AttributeNetworkWrapperV2
             return true;
         }
 
+        /// <summary>
+        /// Shutdown this networkManager, must be called after use and before calling init again.
+        /// </summary>
+        public void Shutdown()
+        {
+            if (this != Instance)
+            {
+                return;
+            }
+            
+            DeSetupEvents();
+            
+            Instance = null;
+            Transport.Instance = null;
+        }
+        
         void SetupEvents()
         {
             if (_eventsSet)
@@ -153,13 +178,15 @@ namespace AttributeNetworkWrapperV2
             }
         }
         //server
-        public virtual void StartServer()
+        public virtual void StartServer(bool serverIsPeer)
         {
+            PeerServer = serverIsPeer;
             Transport.StartServer();
         }
 
         public virtual void EndServer()
         {
+            PeerServer = false;
             Transport.StopServer();
         }
         
@@ -172,6 +199,7 @@ namespace AttributeNetworkWrapperV2
         {
             _clientConnections.Add(connection.ConnectionId, connection);
         }
+
         public virtual void OnServerStarted() {}
         
         public virtual void SendToClient(ClientNetworkConnection connection, ArraySegment<byte> data, SendType sendType)

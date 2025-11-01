@@ -9,12 +9,17 @@ namespace AttributeNetworkWrapperV2
         /// <summary>
         /// Singleton of a Transport
         /// </summary>
-        public static Transport Instance { get; set; }
+        public static Transport? Instance { get; set; }
         
         /// <summary>
         /// Whether this transport is connected and active.
         /// </summary>
         public bool IsActive { get; protected set; }
+        
+        /// <summary>
+        /// Whether this transport is a server.
+        /// </summary>
+        public bool IsServer { get; protected set; }
         
         // CLIENT //////////////////////////////////
         

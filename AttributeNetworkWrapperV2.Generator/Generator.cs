@@ -8,6 +8,13 @@ namespace AttributeNetworkWrapperV2.Generator;
 [Generator]
 public class RpcGenerator : IIncrementalGenerator
 {
+    enum RpcType
+    {
+        Server,
+        Client,
+        Multi
+    }
+    
     public static readonly SymbolDisplayFormat FullNameQualification = new (
             typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
             memberOptions: SymbolDisplayMemberOptions.IncludeContainingType, 
@@ -130,7 +137,7 @@ public class RpcGenerator : IIncrementalGenerator
         StringBuilder source = new StringBuilder();
         
         StartGeneratingClass(source, mtd.ContainingType);
-        GenerateFunctionDeclaration(context, source, mtd, "CallRpc_");
+        GenerateFunctionDeclaration(context, source, mtd, RpcType.Server,"CallRpc_");
         GenerateWriter(context, source, mtd, writers);
             
         source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToServer(writer.GetData(), (SendType){mtd.SendType});");
@@ -187,7 +194,7 @@ public class RpcGenerator : IIncrementalGenerator
         }
         
         StartGeneratingClass(source, mtd.ContainingType);
-        GenerateFunctionDeclaration(context, source, mtd, "CallRpc_");
+        GenerateFunctionDeclaration(context, source, mtd, RpcType.Client, "CallRpc_");
         GenerateWriter(context, source, mtd, writers);
             
         source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToClient({conn}, writer.GetData(), (SendType){mtd.SendType});");
@@ -223,7 +230,7 @@ public class RpcGenerator : IIncrementalGenerator
         StringBuilder source = new StringBuilder();
         
         StartGeneratingClass(source, mtd.ContainingType);
-        GenerateFunctionDeclaration(context, source, mtd, "CallRpc_");
+        GenerateFunctionDeclaration(context, source, mtd, RpcType.Multi, "CallRpc_");
         GenerateWriter(context, source, mtd, writers);
             
         source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToAllClients(writer.GetData(), (SendType){mtd.SendType});");
@@ -305,7 +312,7 @@ public class RpcGenerator : IIncrementalGenerator
 
     }
 
-    static void GenerateFunctionDeclaration(SourceProductionContext context, StringBuilder source, RpcSyntax mtd, string prefix)
+    static void GenerateFunctionDeclaration(SourceProductionContext context, StringBuilder source, RpcSyntax mtd, RpcType rpcType, string prefix)
     {
         source.Append("        ");
         switch (mtd.Accessibility)
@@ -370,13 +377,96 @@ public class RpcGenerator : IIncrementalGenerator
         }
 
         source.AppendLine(")\n        {");
+        
+        source.AppendLine("         if (AttributeNetworkWrapperV2.NetworkManager.Instance == null) \n            return;\n");
+
+        if (rpcType == RpcType.Server)
+        {
+            source.Append($"         if (AttributeNetworkWrapperV2.NetworkManager.Instance.PeerServer) \n         {{\n            {mtd.FullName}(");
+            for (int i = 0; i <  mtd.Parameters.Length; i++)
+            {
+                IParameterSymbol parameter = mtd.Parameters[i];
+               
+                if (parameter.Type.Name == "ClientNetworkConnection")
+                {
+                    source.Append("AttributeNetworkWrapperV2.NetworkManager.Instance.ServerSelfPeerConnection");
+                }
+                else
+                {
+                    source.Append(parameter.Name);
+                }
+                
+                
+                if (i != mtd.Parameters.Length - 1)
+                {
+                    source.Append(", ");
+                }
+            
+            }
+
+            source.AppendLine(");\n            return;\n         }");
+        }
+        
+        if (rpcType == RpcType.Client)
+        {
+            string connParam = "";
+            foreach (var parameterSymbol in mtd.Parameters)
+            {
+                if (parameterSymbol.Type.Name == "ClientNetworkConnection")
+                {
+                    connParam = parameterSymbol.Name;
+                    break;
+                }
+            }
+            
+            source.Append($"         if (AttributeNetworkWrapperV2.NetworkManager.Instance.PeerServer && {connParam} == AttributeNetworkWrapperV2.NetworkManager.Instance.ServerSelfPeerConnection) \n         {{\n            {mtd.FullName}(");
+            for (int i = 0; i <  mtd.Parameters.Length; i++)
+            {
+                IParameterSymbol parameter = mtd.Parameters[i];
+               
+                if (parameter.Type.Name == "ClientNetworkConnection")
+                {
+                    source.Append("null");
+                }
+                else
+                {
+                    source.Append(parameter.Name);
+                }
+                
+                
+                if (i != mtd.Parameters.Length - 1)
+                {
+                    source.Append(", ");
+                }
+            
+            }
+
+            source.AppendLine(");\n            return;\n         }");
+        }
+        if (rpcType == RpcType.Multi)
+        {
+            source.Append($"         if (AttributeNetworkWrapperV2.NetworkManager.Instance.PeerServer) \n            {mtd.FullName}(");
+            for (int i = 0; i <  mtd.Parameters.Length; i++)
+            {
+                IParameterSymbol parameter = mtd.Parameters[i];
+                
+                source.Append(parameter.Name);
+                
+                if (i != mtd.Parameters.Length - 1)
+                {
+                    source.Append(", ");
+                }
+            
+            }
+
+            source.AppendLine(");\n");
+        }
     }
 
     static void GenerateWriter(SourceProductionContext context, StringBuilder source, RpcSyntax mtd, ImmutableArray<ExtensionSyntax> writers)
     {
-        source.AppendLine("         if (AttributeNetworkWrapperV2.NetworkManager.Instance == null) \n            return;\n");
         source.AppendLine("         using NetworkWriter writer = new NetworkWriter();");
-        source.AppendLine($"         writer.Write({mtd.Hash});");
+        source.AppendLine($"         writer.Write((ushort){mtd.Hash});");
         
         bool found = false;
         foreach (var parameterSymbol in mtd.Parameters)
@@ -522,16 +612,15 @@ public class RpcGenerator : IIncrementalGenerator
         builder.AppendLine(@"
 namespace AttributeNetworkWrapperV2
 {
-    internal static class RpcFuncRegisterGenerated
+    public static class RpcFuncRegistersGenerated
     {
-        static RpcFuncRegisterGenerated()
+        static RpcFuncRegistersGenerated()
         {");
 
-       
+        var tet = 1;
         
         foreach (var rpcSyntax in server)
         {
-            
             RegisterRpc(rpcSyntax, 0);
         }
         foreach (var rpcSyntax in client)
