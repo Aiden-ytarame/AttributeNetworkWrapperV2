@@ -155,49 +155,11 @@ public class RpcGenerator : IIncrementalGenerator
         if (!ValidRpc(context, mtd)) return;
         
         StringBuilder source = new StringBuilder();
-
-        string conn = "";
-        bool found = false;
-        foreach (var parameterSymbol in mtd.Parameters)
-        {
-            if (parameterSymbol.Type.ToDisplayString(FullNameQualification) == "AttributeNetworkWrapperV2.ClientNetworkConnection")
-            {
-                if (found)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        new DiagnosticDescriptor(
-                            "SG0001",
-                            "duplicate conn",
-                            $"method {mtd.Name} contains more than one ClientNetworkConnection parameter",
-                            "error",
-                            DiagnosticSeverity.Error,
-                            true), mtd.Location)); 
-                    return;
-                }
-                
-                conn = parameterSymbol.Name;
-                found = true;
-            }
-        }
-        
-        if (!found)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                new DiagnosticDescriptor(
-                    "SG0001",
-                    "no writer",
-                    $"client rpc {mtd.Name} should contain one ClientNetworkConnection parameter",
-                    "error",
-                    DiagnosticSeverity.Error,
-                    true), mtd.Location));
-            return;
-        }
-        
         StartGeneratingClass(source, mtd.ContainingType);
         GenerateFunctionDeclaration(context, source, mtd, RpcType.Client, "CallRpc_");
         GenerateWriter(context, source, mtd, writers);
             
-        source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToClient({conn}, writer.GetData(), (SendType){mtd.SendType});");
+        source.AppendLine($"         AttributeNetworkWrapperV2.NetworkManager.Instance.SendToClient(target, writer.GetData(), (SendType){mtd.SendType});");
         source.AppendLine("        }\n");
         
         GenerateDeserializeFunction(context, source, mtd, readers);
@@ -305,10 +267,10 @@ public class RpcGenerator : IIncrementalGenerator
         
         source.Append($"partial class {type.Name}");
 
-        if (type.BaseType is not null)
-            source.Append($" : {type.BaseType.ToDisplayString()} \n    {{\n");
-        else
-            source.Append("\n    {\n");
+        //if (type.BaseType is not null)
+         //   source.Append($" : {type.BaseType.ToDisplayString()} \n    {{\n");
+       // else
+        source.Append("\n    {\n");
 
     }
 
@@ -332,6 +294,15 @@ public class RpcGenerator : IIncrementalGenerator
         }
 
         source.Append($"static void {prefix}{mtd.Name} (");
+
+        if (rpcType == RpcType.Client)
+        {
+            source.Append($"ClientNetworkConnection target");
+            if (mtd.Parameters.Length > 0)
+            {
+                source.Append(", ");
+            }
+        }
         
         for (int i = 0; i <  mtd.Parameters.Length; i++)
         {
@@ -349,6 +320,11 @@ public class RpcGenerator : IIncrementalGenerator
                 return;
             }
 
+            if (parameter.Type.ToDisplayString(FullNameQualification) ==
+                "AttributeNetworkWrapperV2.ClientNetworkConnection")
+            {
+                continue;
+            }
             
             source.Append($"{parameter.Type.ToDisplayString(FullNameQualification)} {parameter.Name}");
 
@@ -409,17 +385,7 @@ public class RpcGenerator : IIncrementalGenerator
         
         if (rpcType == RpcType.Client)
         {
-            string connParam = "";
-            foreach (var parameterSymbol in mtd.Parameters)
-            {
-                if (parameterSymbol.Type.Name == "ClientNetworkConnection")
-                {
-                    connParam = parameterSymbol.Name;
-                    break;
-                }
-            }
-            
-            source.Append($"         if (AttributeNetworkWrapperV2.NetworkManager.Instance.PeerServer && {connParam} == AttributeNetworkWrapperV2.NetworkManager.Instance.ServerSelfPeerConnection) \n         {{\n            {mtd.FullName}(");
+            source.Append($"         if (AttributeNetworkWrapperV2.NetworkManager.Instance.PeerServer && target == AttributeNetworkWrapperV2.NetworkManager.Instance.ServerSelfPeerConnection) \n         {{\n            {mtd.FullName}(");
             for (int i = 0; i <  mtd.Parameters.Length; i++)
             {
                 IParameterSymbol parameter = mtd.Parameters[i];

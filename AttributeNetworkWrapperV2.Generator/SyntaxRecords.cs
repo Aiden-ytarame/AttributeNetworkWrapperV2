@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace AttributeNetworkWrapperV2.Generator;
 
-public readonly record struct RpcSyntax(string Name, string FullName, ushort Hash, INamedTypeSymbol ContainingType, Accessibility Accessibility, ImmutableArray<IParameterSymbol> Parameters, ushort SendType, Location? Location, RpcSyntax.RpcError Error = RpcSyntax.RpcError.None)
+public readonly record struct RpcSyntax(string Name, string FullName, ushort Hash, INamedTypeSymbol ContainingType, Accessibility Accessibility, ImmutableArray<IParameterSymbol> Parameters, ushort SendType, Location? Location, RpcSyntax.RpcError Error = RpcSyntax.RpcError.None, MethodImplOptions? ImplOptions = null)
 {
     public enum RpcError
     {
@@ -34,7 +35,28 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
             return new RpcSyntax(method.Name, method.ToDisplayString(RpcGenerator.FullNameQualification), 0, method.ContainingType, method.DeclaredAccessibility, method.Parameters, 0, method.Locations.FirstOrDefault(), RpcError.Partial);
         }
 
-        return new RpcSyntax(method.Name, method.ToDisplayString(RpcGenerator.FullNameQualification), method.ToDisplayString(RpcGenerator.FullNameQualification).GetStableHashCode(), method.ContainingType, method.DeclaredAccessibility, method.Parameters, (ushort)method.GetAttributes()[0].ConstructorArguments[0].Value!, method.Locations.FirstOrDefault());
+        MethodImplOptions? options = null;
+        
+        foreach (var attributeData in method.GetAttributes())
+        {
+            if (attributeData.ConstructorArguments.Length > 0 &&
+                attributeData.AttributeClass!.ContainingNamespace.Name == "CompilerServices" &&
+                attributeData.AttributeClass.Name == "MethodImplAttribute")
+            {
+                options = (MethodImplOptions)attributeData.ConstructorArguments[0].Value!;
+            }
+        }
+
+        return new RpcSyntax(method.Name, 
+            method.ToDisplayString(RpcGenerator.FullNameQualification), 
+            method.ToDisplayString(RpcGenerator.FullNameQualification).GetStableHashCode(), 
+            method.ContainingType, 
+            method.DeclaredAccessibility, 
+            method.Parameters, 
+            (ushort)method.GetAttributes().First(x => x.AttributeClass!.ContainingNamespace.Name == "AttributeNetworkWrapperV2").ConstructorArguments[0].Value!, 
+            method.Locations.FirstOrDefault(),
+            RpcError.None,
+            options);
     }
 
     public readonly string Name = Name;
@@ -46,6 +68,8 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
     public readonly ushort SendType = SendType;
     public readonly Location? Location = Location;
     public readonly RpcError Error = Error;
+    public readonly MethodImplOptions? ImplOptions = ImplOptions;
+
 }
 
 public readonly record struct ExtensionSyntax(string FullName, ITypeSymbol ExtensionType)
