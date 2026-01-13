@@ -43,7 +43,14 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
                 attributeData.AttributeClass!.ContainingNamespace.Name == "CompilerServices" &&
                 attributeData.AttributeClass.Name == "MethodImplAttribute")
             {
-                options = (MethodImplOptions)attributeData.ConstructorArguments[0].Value!;
+                if (attributeData.ConstructorArguments[0].Type!.Name == "Int16")
+                {
+                    options = (MethodImplOptions)(short)attributeData.ConstructorArguments[0].Value!; //cast fails otherwise
+                }
+                else
+                {
+                    options = (MethodImplOptions)attributeData.ConstructorArguments[0].Value!;
+                }
             }
         }
 

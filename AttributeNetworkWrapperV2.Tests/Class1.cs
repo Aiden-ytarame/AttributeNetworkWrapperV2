@@ -1,5 +1,4 @@
 ﻿
-using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace AttributeNetworkWrapperV2.Tests;
@@ -20,7 +19,7 @@ public partial class TestClass
         
     }
 
-    [MethodImpl()]
+    [MethodImpl(8)]
     [ServerRpc]
     public static void TestMethodServer(ClientNetworkConnection caller, int a, TestData b, int c = 11)
     {
@@ -32,7 +31,7 @@ public partial class TestClass
     {
       
     }
-
+    
     public static void Test()
     {
         CallRpc_TestMethodClient(null, 1, new TestData());

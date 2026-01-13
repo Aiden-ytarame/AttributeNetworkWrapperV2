@@ -35,7 +35,7 @@ namespace AttributeNetworkWrapperV2
         /// <summary>
         /// Calls Transport.Instance
         /// </summary>
-        protected Transport Transport => Transport.Instance;
+        protected Transport Transport => Transport.Instance!;
         
         bool _eventsSet = false;
         

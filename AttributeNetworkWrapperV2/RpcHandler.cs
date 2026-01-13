@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace AttributeNetworkWrapperV2;
@@ -53,6 +54,11 @@ public static class RpcHandler
     
     public static void RegisterRpc(ushort hash, RpcDelegate rpcDelegate, CallType callType)
     {
+        if (TryGetRpcInvoker(hash, out var invoker))
+        {
+            throw new ArgumentException($"Tried to register RPC with hash {hash}, but it already exists.\n" +
+                                        $"Tried to Add [{rpcDelegate.Method.DeclaringType?.Name}.{rpcDelegate.Method.Name}] but [{invoker.RpcFunc.Method.DeclaringType?.Name}.{invoker.RpcFunc.Method.Name}] already exists. Consider renaming the RPC.");
+        }
         RpcInvokers.Add(hash, new Invoker(callType, rpcDelegate));
     }
 }
