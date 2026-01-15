@@ -28,4 +28,14 @@
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true"
               PackagePath="analyzers/dotnet/cs" Visible="false" />
     </ItemGroup>
+
+    <PropertyGroup>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../LICENSE" Pack="true" PackagePath=""/>
+        <None Include="../README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
 </Project>
