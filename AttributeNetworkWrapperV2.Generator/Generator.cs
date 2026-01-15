@@ -587,8 +587,6 @@ namespace AttributeNetworkWrapperV2
         static RpcFuncRegistersGenerated()
         {");
 
-        var tet = 1;
-        
         foreach (var rpcSyntax in server)
         {
             RegisterRpc(rpcSyntax, 0);
