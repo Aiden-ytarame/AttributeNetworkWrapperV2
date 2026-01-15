@@ -12,31 +12,37 @@ public struct TestData(int data1, int data2)
 
 public partial class TestClass
 {
-    [MethodImpl(MethodImplOptions.NoInlining)]
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
     [ClientRpc]
     public static void TestMethodClient(int a, TestData b, int c = 11)
     {
-        
+        Console.WriteLine($"TestMethodClient: {a}, {b.Data1}/{b.Data2}, {c}");
     }
 
     [MethodImpl(8)]
     [ServerRpc]
     public static void TestMethodServer(ClientNetworkConnection caller, int a, TestData b, int c = 11)
     {
-        
+        Console.WriteLine($"TestMethodServer({a}, {b.Data1}/{b.Data2}, {c})");
     }
     
     [MultiRpc]
     public static void TestMethodMulti(int a, TestData b, int c = 11)
     {
-      
+      Console.WriteLine($"TestMethodMulti({a}, {b.Data1}/{b.Data2}, {c})");
     }
     
     public static void Test()
     {
-        CallRpc_TestMethodClient(null, 1, new TestData());
-        CallRpc_TestMethodServer(1, new TestData());
-        CallRpc_TestMethodMulti(1, new TestData());
+        //this isnt a good test, fix later
+        //the source gen looks right, and functionally it works on my test project
+        NetworkManager server = new NetworkManager();
+        server.Init(new LocalTransport());
+        server.StartServer(true);
+        
+        CallRpc_TestMethodServer(1, new TestData(10, 15), 20);
+        CallRpc_TestMethodMulti(2, new TestData(1, 2));
+        CallRpc_TestMethodClient(server.ServerSelfPeerConnection, 1, new TestData());
     }
 }
 

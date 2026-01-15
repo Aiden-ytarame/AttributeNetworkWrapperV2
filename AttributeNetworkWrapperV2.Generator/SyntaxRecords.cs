@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace AttributeNetworkWrapperV2.Generator;
 
-public readonly record struct RpcSyntax(string Name, string FullName, ushort Hash, INamedTypeSymbol ContainingType, Accessibility Accessibility, ImmutableArray<IParameterSymbol> Parameters, ushort SendType, Location? Location, RpcSyntax.RpcError Error = RpcSyntax.RpcError.None, MethodImplOptions? ImplOptions = null)
+public readonly record struct RpcSyntax(string Name, string FullName, ushort Hash, INamedTypeSymbol ContainingType, Accessibility Accessibility, ImmutableArray<IParameterSymbol> Parameters, ushort SendType, Location? Location, RpcSyntax.RpcError Error = RpcSyntax.RpcError.None, short? ImplOptions = null)
 {
     public enum RpcError
     {
@@ -35,7 +35,7 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
             return new RpcSyntax(method.Name, method.ToDisplayString(RpcGenerator.FullNameQualification), 0, method.ContainingType, method.DeclaredAccessibility, method.Parameters, 0, method.Locations.FirstOrDefault(), RpcError.Partial);
         }
 
-        MethodImplOptions? options = null;
+        short? options = null;
         
         foreach (var attributeData in method.GetAttributes())
         {
@@ -45,11 +45,11 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
             {
                 if (attributeData.ConstructorArguments[0].Type!.Name == "Int16")
                 {
-                    options = (MethodImplOptions)(short)attributeData.ConstructorArguments[0].Value!; //cast fails otherwise
+                    options = (short)attributeData.ConstructorArguments[0].Value!; //cast fails otherwise
                 }
                 else
                 {
-                    options = (MethodImplOptions)attributeData.ConstructorArguments[0].Value!;
+                    options = (short)(int)attributeData.ConstructorArguments[0].Value!;
                 }
             }
         }
@@ -75,7 +75,7 @@ public readonly record struct RpcSyntax(string Name, string FullName, ushort Has
     public readonly ushort SendType = SendType;
     public readonly Location? Location = Location;
     public readonly RpcError Error = Error;
-    public readonly MethodImplOptions? ImplOptions = ImplOptions;
+    public readonly short? ImplOptions = ImplOptions;
 
 }
 

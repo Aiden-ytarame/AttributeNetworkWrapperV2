@@ -278,7 +278,7 @@ public class RpcGenerator : IIncrementalGenerator
     {
         if (mtd.ImplOptions != null)
         {
-            source.AppendLine($"        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.{mtd.ImplOptions.ToString()})]");
+            source.AppendLine($"        [System.Runtime.CompilerServices.MethodImpl({mtd.ImplOptions.ToString()})]");
         }
         source.Append("        ");
         switch (mtd.Accessibility)

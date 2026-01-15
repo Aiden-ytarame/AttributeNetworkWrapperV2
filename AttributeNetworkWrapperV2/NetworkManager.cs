@@ -28,8 +28,8 @@ namespace AttributeNetworkWrapperV2
         /// </summary>
         public ClientNetworkConnection? ServerSelfPeerConnection { get; protected set; }
         
-        protected ServerNetworkConnection? _serverConnection;
-        protected Dictionary<int, ClientNetworkConnection> _clientConnections = new();
+        protected ServerNetworkConnection? ServerConnection;
+        protected Dictionary<int, ClientNetworkConnection> ClientConnections = new();
         
         
         /// <summary>
@@ -133,22 +133,22 @@ namespace AttributeNetworkWrapperV2
 
         public virtual void OnClientConnected(ServerNetworkConnection connection)
         {
-            _serverConnection = connection;
+            ServerConnection = connection;
         }
 
         public virtual void OnClientDisconnected()
         {
-            _serverConnection = null;
+            ServerConnection = null;
         }
         
         public virtual void SendToServer(ArraySegment<byte> data, SendType sendType)
         {
-            if (_serverConnection == null || Transport == null || !Transport.IsActive)
+            if (ServerConnection == null || Transport == null || !Transport.IsActive)
             {
                 throw new NullServerException("Tried calling a server rpc while server is Null!");
             }
             
-            _serverConnection.SendRpcToTransport(data, sendType);
+            ServerConnection.SendRpcToTransport(data, sendType);
         }
 
         internal static void OnClientTransportDataReceived(ArraySegment<byte> data)
@@ -180,24 +180,29 @@ namespace AttributeNetworkWrapperV2
         //server
         public virtual void StartServer(bool serverIsPeer)
         {
+            ClientConnections.Clear();
             PeerServer = serverIsPeer;
+            ServerSelfPeerConnection = new ClientNetworkConnection(0, "addr");
+            ClientConnections.Add(0, ServerSelfPeerConnection);
             Transport.StartServer();
         }
 
         public virtual void EndServer()
         {
             PeerServer = false;
+            ClientConnections.Clear();
+            ServerSelfPeerConnection = null;
             Transport.StopServer();
         }
         
         public virtual void OnServerClientDisconnected(ClientNetworkConnection connection)
         {
-            _clientConnections.Remove(connection.ConnectionId);
+            ClientConnections.Remove(connection.ConnectionId);
         }
 
         public virtual void OnServerClientConnected(ClientNetworkConnection connection)
         {
-            _clientConnections.Add(connection.ConnectionId, connection);
+            ClientConnections.Add(connection.ConnectionId, connection);
         }
 
         public virtual void OnServerStarted() {}
@@ -225,8 +230,13 @@ namespace AttributeNetworkWrapperV2
                 throw new NullServerException("Tried calling a Client rpc while transport is Null!");
             }
             
-            foreach (var clientNetworkConnection in _clientConnections)
+            foreach (var clientNetworkConnection in ClientConnections)
             {
+                if (PeerServer && ServerSelfPeerConnection == clientNetworkConnection.Value)
+                {
+                    continue;
+                }
+                
                 clientNetworkConnection.Value.SendRpcToTransport(data, sendType);
             }
         }
