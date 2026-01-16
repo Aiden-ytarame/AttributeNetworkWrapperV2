@@ -21,7 +21,6 @@ public static void Server_DoStuff(int param1, bool param2)
 on build, this generates:
 
 ```csharp
-[ServerRpc(Reliable)]
 public static void CallRpc_Server_DoStuff(int param1, bool param2)
 {
       if (NetworkManager.Instance == null) return;
