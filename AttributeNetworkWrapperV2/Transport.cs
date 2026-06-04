@@ -6,6 +6,9 @@ namespace AttributeNetworkWrapperV2
     /// </summary>
     public abstract class Transport
     {
+        public delegate void OnClientDataReceivedDelegate(ReadOnlySpan<byte> data);
+        public delegate void OnServerDataReceivedDelegate(ClientNetworkConnection connection, ReadOnlySpan<byte> data);
+        
         /// <summary>
         /// Singleton of a Transport
         /// </summary>
@@ -24,7 +27,7 @@ namespace AttributeNetworkWrapperV2
         // CLIENT //////////////////////////////////
         
         //Events called by the Transport, used by NetworkManager
-        public Action<ArraySegment<byte>> OnClientDataReceived;
+        public OnClientDataReceivedDelegate OnClientDataReceived;
         public Action<ServerNetworkConnection> OnClientConnected;
         public Action OnClientDisconnected;
       
@@ -39,7 +42,7 @@ namespace AttributeNetworkWrapperV2
         // SERVER /////////////////////
         
         //Events called by the Transport, used by NetworkManager
-        public Action<ClientNetworkConnection, ArraySegment<byte>> OnServerDataReceived;
+        public OnServerDataReceivedDelegate OnServerDataReceived;
         public Action<ClientNetworkConnection> OnServerClientConnected;
         public Action<ClientNetworkConnection> OnServerClientDisconnected;
         public Action OnServerStarted;
@@ -58,8 +61,8 @@ namespace AttributeNetworkWrapperV2
         public abstract void KickConnection(int connectionId);
      
         //Send messages
-        public abstract void SendMessageToServer(ArraySegment<byte> data, SendType sendType = SendType.Reliable);
-        public abstract void SendMessageToClient(int connectionId, ArraySegment<byte> data, SendType sendType = SendType.Reliable);
+        public abstract void SendMessageToServer(ReadOnlySpan<byte> data, SendType sendType = SendType.Reliable);
+        public abstract void SendMessageToClient(int connectionId, ReadOnlySpan<byte> data, SendType sendType = SendType.Reliable);
         
         /// <summary>
         /// Closes both Client and Server and sets yourself to null

@@ -18,12 +18,20 @@ public partial class TestClass
     {
         Console.WriteLine($"TestMethodClient: {a}, {b.Data1}/{b.Data2}, {c}");
     }
-
+    
     [MethodImpl(8)]
     [ServerRpc]
     public static void TestMethodServer(ClientNetworkConnection caller, int a, TestData b, int c = 11)
     {
         Console.WriteLine($"TestMethodServer({a}, {b.Data1}/{b.Data2}, {c})");
+        CallRpc_TestMethodClientResponse(caller, caller.ConnectionId);
+        
+    }
+    
+    [ClientRpc]
+    public static void TestMethodClientResponse(int i)
+    {
+        Console.WriteLine($"TestMethodClientResponse: {i}");
     }
     
     [MultiRpc]
@@ -35,7 +43,7 @@ public partial class TestClass
     public static void Test()
     {
         //this isnt a good test, fix later
-        //the source gen looks right, and functionally it works on my test project
+        //the source gen looks right, and functionally it works the project this was made for: Project Arrhythmia Multiplayer Mod
         NetworkManager server = new NetworkManager();
         server.Init(new LocalTransport());
         server.StartServer(true);

@@ -15,9 +15,9 @@ namespace AttributeNetworkWrapperV2
             _memoryStream.Position = 0;
         }
         
-        public ArraySegment<byte> GetData()
+        public ReadOnlySpan<byte> GetData()
         {
-            return new ArraySegment<byte>(_memoryStream.GetBuffer(), 0, (int)_memoryStream.Position);
+            return new ReadOnlySpan<byte>(_memoryStream.GetBuffer(), 0, (int)_memoryStream.Position);
         }
 
         public void Dispose()

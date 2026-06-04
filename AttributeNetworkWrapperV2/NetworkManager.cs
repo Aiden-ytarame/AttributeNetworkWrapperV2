@@ -33,7 +33,7 @@ namespace AttributeNetworkWrapperV2
         
         
         /// <summary>
-        /// Calls Transport.Instance
+        /// Returns Transport.Instance
         /// </summary>
         protected Transport Transport => Transport.Instance!;
         
@@ -141,7 +141,7 @@ namespace AttributeNetworkWrapperV2
             ServerConnection = null;
         }
         
-        public virtual void SendToServer(ArraySegment<byte> data, SendType sendType)
+        public virtual void SendToServer(ReadOnlySpan<byte> data, SendType sendType)
         {
             if (ServerConnection == null || Transport == null || !Transport.IsActive)
             {
@@ -151,11 +151,11 @@ namespace AttributeNetworkWrapperV2
             ServerConnection.SendRpcToTransport(data, sendType);
         }
 
-        internal static void OnClientTransportDataReceived(ArraySegment<byte> data)
+        internal static void OnClientTransportDataReceived(ReadOnlySpan<byte> data)
         {
             using NetworkReader reader = new NetworkReader(data);
             
-            if (data.Count < 2)
+            if (data.Length < 2)
             {
                 Console.WriteLine("Data was too small, idk what we do for now");
                 return;
@@ -207,7 +207,7 @@ namespace AttributeNetworkWrapperV2
 
         public virtual void OnServerStarted() {}
         
-        public virtual void SendToClient(ClientNetworkConnection connection, ArraySegment<byte> data, SendType sendType)
+        public virtual void SendToClient(ClientNetworkConnection connection, ReadOnlySpan<byte> data, SendType sendType)
         {
             if (Transport == null || !Transport.IsActive)
             {
@@ -223,7 +223,7 @@ namespace AttributeNetworkWrapperV2
             throw new ArgumentException("Tried to send rpc to invalid connection ID!");
         }
         
-        public virtual void SendToAllClients(ArraySegment<byte> data, SendType sendType)
+        public virtual void SendToAllClients(ReadOnlySpan<byte> data, SendType sendType)
         {
             if (Transport == null || !Transport.IsActive)
             {
@@ -241,11 +241,11 @@ namespace AttributeNetworkWrapperV2
             }
         }
         
-        internal static void OnServerTransportDataReceived(ClientNetworkConnection connection, ArraySegment<byte> data)
+        internal static void OnServerTransportDataReceived(ClientNetworkConnection connection, ReadOnlySpan<byte> data)
         {
             using NetworkReader reader = new NetworkReader(data);
             
-            if (data.Count < 2)
+            if (data.Length < 2)
             {
                 Console.WriteLine("Data was too small, idk what we do for now");
                 return;

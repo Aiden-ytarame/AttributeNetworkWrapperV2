@@ -16,7 +16,7 @@ namespace AttributeNetworkWrapperV2
             Address = address;
         }
        
-        public abstract void SendRpcToTransport(ArraySegment<byte> data, SendType sendType = SendType.Reliable);
+        public abstract void SendRpcToTransport(ReadOnlySpan<byte> data, SendType sendType = SendType.Reliable);
         public abstract void Disconnect();
     }
     /// <summary>
@@ -25,7 +25,7 @@ namespace AttributeNetworkWrapperV2
     /// <param name="address">Adress to the server</param>
     public class ServerNetworkConnection(string address) : NetworkConnection(0, address)
     {
-        public override void SendRpcToTransport(ArraySegment<byte> data, SendType sendType = SendType.Reliable) => Transport.Instance?.SendMessageToServer(data, sendType);
+        public override void SendRpcToTransport(ReadOnlySpan<byte> data, SendType sendType = SendType.Reliable) => Transport.Instance?.SendMessageToServer(data, sendType);
         public override void Disconnect()
         {
             NetworkManager.Instance?.Disconnect();
@@ -39,7 +39,7 @@ namespace AttributeNetworkWrapperV2
     /// <param name="address">Address of this client</param>
     public class ClientNetworkConnection(int connectionId, string address) : NetworkConnection(connectionId, address)
     {
-        public override void SendRpcToTransport(ArraySegment<byte> data, SendType sendType = SendType.Reliable) => Transport.Instance?.SendMessageToClient(ConnectionId, data, sendType);
+        public override void SendRpcToTransport(ReadOnlySpan<byte> data, SendType sendType = SendType.Reliable) => Transport.Instance?.SendMessageToClient(ConnectionId, data, sendType);
 
         public override void Disconnect()
         {

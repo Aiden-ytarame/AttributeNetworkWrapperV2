@@ -20,7 +20,8 @@ public class RpcGenerator : IIncrementalGenerator
             memberOptions: SymbolDisplayMemberOptions.IncludeContainingType, 
             globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes, 
-            genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
+            genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+            parameterOptions: SymbolDisplayParameterOptions.IncludeType);
     
     
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -202,8 +203,8 @@ public class RpcGenerator : IIncrementalGenerator
         
         source.AppendLine("   }\n}");
         context.AddSource($"{mtd.FullName}.g.cs", source.ToString());
-        
     }
+    
     static bool ValidRpc(SourceProductionContext context, RpcSyntax mtd)
     {
         switch (mtd.Error)
@@ -232,6 +233,7 @@ public class RpcGenerator : IIncrementalGenerator
                 return true;
         }
     }
+    
     static void StartGeneratingClass(StringBuilder source, INamedTypeSymbol type)
     {
         source.AppendLine("using System; \nusing AttributeNetworkWrapperV2;");
@@ -475,7 +477,7 @@ public class RpcGenerator : IIncrementalGenerator
 
     static void GenerateDeserializeFunction(SourceProductionContext context, StringBuilder source, RpcSyntax mtd, ImmutableArray<ExtensionSyntax> readers)
     {
-        source.AppendLine($"        public static void Deserialize_{mtd.Name}_{mtd.Hash} (ClientNetworkConnection senderConn, NetworkReader reader)");
+        source.AppendLine($"        internal static void Deserialize_{mtd.Name}_{mtd.Hash} (ClientNetworkConnection senderConn, NetworkReader reader)");
 
         source.AppendLine("        {");
         source.Append($"            {mtd.Name}(");
@@ -579,6 +581,7 @@ public class RpcGenerator : IIncrementalGenerator
         
         builder.AppendLine("using AttributeNetworkWrapperV2;\n");
 
+        builder.AppendLine("[assembly:  System.Runtime.CompilerServices.InternalsVisibleTo(\"AttributeNetworkWrapperV2\")]\n");
         builder.AppendLine(@"
 namespace AttributeNetworkWrapperV2
 {

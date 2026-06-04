@@ -1,5 +1,7 @@
 namespace AttributeNetworkWrapperV2;
 
+// This is quite slow, but my use case doesnt require insane speeds, so ill leave this for now....
+
 /// <summary>
 /// Responsible for reading network data for invoking rpc's
 /// </summary>
@@ -12,7 +14,7 @@ public class NetworkReader : IDisposable
         BinaryReader = new BinaryReader(stream);
     }
     
-    public NetworkReader(ArraySegment<byte> data) : this(new MemoryStream(data.ToArray())) { }
+    public NetworkReader(ReadOnlySpan<byte> data) : this(new MemoryStream(data.ToArray())) { }
     
     public void Dispose()
     {
